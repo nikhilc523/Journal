@@ -1,0 +1,62 @@
+name: Stage Review
+
+# Per-PR adversarial "does this break the app?" review (the `stage-review` skill).
+# It hunts HIGH-severity bugs and regressions across the whole stage diff and
+# posts a BLOCK / WARN / PASS verdict as a PR comment.
+#
+# The review itself is driven by Claude Code and needs an ANTHROPIC_API_KEY repo
+# secret. Until that secret is configured the job self-skips (it never fails the
+# PR) — the enforced gate is the "Build & Test" check in ci.yml. Merge judgement
+# can also be run locally with `/stage-review`.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: stage-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  stage-review:
+    name: Stage Review
+    runs-on: macos-26
+    steps:
+      - name: Check for API key
+        id: gate
+        run: |
+          if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "ANTHROPIC_API_KEY not set — skipping automated stage review." >> "$GITHUB_STEP_SUMMARY"
+            echo "Run '/stage-review' locally, or add the secret to enable it in CI." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Checkout (full history for diff)
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run stage review
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          git diff "$BASE_SHA...$HEAD_SHA" > stage.diff
+          claude -p "Load the stage-review skill and review the diff in stage.diff against the stage contract in docs/product/02-build-plan.md. Emit the BLOCK/WARN/PASS verdict comment." \
+            --allowedTools "Read,Bash,Grep,Glob" > review.md || true
+          if [ -s review.md ]; then
+            gh pr comment "$PR_NUMBER" --body-file review.md
+          fi

@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: macos-26
+    env:
+      SCHEME: Journal
+      # Minimum line coverage (%) for the app target. Raised as real features land.
+      COVERAGE_MIN: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          # latest-stable = the runner's fully-installed Xcode 26.x (its matching
+          # iOS 26 simulator runtime is present). Pinning "26.0" selected an
+          # Xcode whose iOS 26.0 runtime was NOT installed on the image.
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Show Xcode & runtimes
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes | grep -i ios || true
+
+      - name: Resolve iPhone 17 simulator
+        run: |
+          set -euo pipefail
+          # `OS=latest`/`name=` destinations resolve unreliably when several iOS
+          # runtimes are installed (xcodebuild fell back to a placeholder that
+          # demanded "iOS 26.0"). Pin to a concrete UDID instead. Xcode 26 ships
+          # only iOS 26 runtimes, so the first available plain "iPhone 17" is on
+          # iOS 26 — the "\(" guard excludes "iPhone 17 Pro".
+          UDID=$(xcrun simctl list devices available \
+            | grep -E 'iPhone 17 \(' \
+            | grep -oiE '[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}' \
+            | head -1)
+          if [ -z "$UDID" ]; then
+            echo "::error::No available 'iPhone 17' simulator found on this runner."
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Resolved iPhone 17 simulator: $UDID"
+          xcrun simctl boot "$UDID" || true
+          echo "SIM_ID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Build & test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Journal.xcodeproj \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            -resultBundlePath TestResults.xcresult \
+            -enableCodeCoverage YES \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Coverage gate
+        if: success()
+        run: |
+          set -euo pipefail
+          COVERAGE=$(xcrun xccov view --report --json TestResults.xcresult \
+            | python3 -c "import sys, json; d=json.load(sys.stdin); print(round(d['lineCoverage']*100, 2))")
+          echo "Line coverage: ${COVERAGE}%"
+          echo "### Coverage: ${COVERAGE}% (min ${COVERAGE_MIN}%)" >> "$GITHUB_STEP_SUMMARY"
+          MET=$(python3 -c "print(1 if float('${COVERAGE}') >= float('${COVERAGE_MIN}') else 0)")
+          if [ "$MET" -ne 1 ]; then
+            echo "::error::Coverage ${COVERAGE}% is below the ${COVERAGE_MIN}% gate."
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          retention-days: 7
