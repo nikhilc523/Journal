@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: macos-26
+    env:
+      SCHEME: Journal
+      # macos-26 runners ship the iOS 26.x runtime; OS=latest resolves to it
+      # without pinning a patch version that may not exist on the image.
+      DESTINATION: "platform=iOS Simulator,name=iPhone 17,OS=latest"
+      # Minimum line coverage (%) for the app target. Raised as real features land.
+      COVERAGE_MIN: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.0"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Show available simulators
+        run: xcrun simctl list devices available | grep -i "iphone 17" || true
+
+      - name: Build & test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Journal.xcodeproj \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            -resultBundlePath TestResults.xcresult \
+            -enableCodeCoverage YES \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Coverage gate
+        if: success()
+        run: |
+          set -euo pipefail
+          COVERAGE=$(xcrun xccov view --report --json TestResults.xcresult \
+            | python3 -c "import sys, json; d=json.load(sys.stdin); print(round(d['lineCoverage']*100, 2))")
+          echo "Line coverage: ${COVERAGE}%"
+          echo "### Coverage: ${COVERAGE}% (min ${COVERAGE_MIN}%)" >> "$GITHUB_STEP_SUMMARY"
+          MET=$(python3 -c "print(1 if float('${COVERAGE}') >= float('${COVERAGE_MIN}') else 0)")
+          if [ "$MET" -ne 1 ]; then
+            echo "::error::Coverage ${COVERAGE}% is below the ${COVERAGE_MIN}% gate."
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          retention-days: 7
