@@ -55,6 +55,22 @@ public struct Repository: Sendable {
         return updated
     }
 
+    /// Persist the composer's rich text: the Markdown projection (`body`) plus the
+    /// lossless `bodyArchive`, stamping `updatedAt`. Runs on GRDB's async writer so
+    /// autosave never blocks the main thread.
+    public func updateBody(entryID: UUID, markdown: String, archive: Data?, now: Date = Date()) async throws {
+        try await database.write { db in
+            try JournalEntry
+                .update {
+                    $0.body = markdown
+                    $0.bodyArchive = archive
+                    $0.updatedAt = now
+                }
+                .where { $0.id.eq(entryID) }
+                .execute(db)
+        }
+    }
+
     /// Delete an entry. `ON DELETE CASCADE` removes its media, embedding, and tag
     /// links; todos have their `entryID` set NULL (they may be standalone).
     public func deleteEntry(id: UUID) throws {

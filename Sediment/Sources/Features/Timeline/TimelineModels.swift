@@ -58,9 +58,10 @@ public func timelineTimestamp(_ date: Date, now: Date = Date(), calendar: Calend
     return date.formatted(.dateTime.month(.abbreviated).day())
 }
 
-/// Build a preview string from an entry body, collapsing whitespace and falling
-/// back to a calm placeholder for empty entries.
+/// Build a preview string from an entry body: strip Markdown formatting to the
+/// words a reader sees, collapse whitespace, and fall back to a calm placeholder
+/// for empty entries.
 public func entryPreview(_ body: String) -> String {
-    let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmed.isEmpty ? "New entry" : trimmed
+    let plain = RichTextCodec.plainText(fromMarkdown: body)
+    return plain.isEmpty ? "New entry" : plain
 }

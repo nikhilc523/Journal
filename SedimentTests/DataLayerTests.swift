@@ -41,6 +41,54 @@ import GRDB
         #expect(applied.contains("v1_create_entities"))
     }
 
+    /// Stage 4 added `bodyArchive` via `v2_entry_body_archive`. Seed a store at the
+    /// *old* (v1-only) schema, then migrate forward and prove: (a) the column is
+    /// added, and (b) the pre-existing row survives with a NULL archive — no data
+    /// loss (repo rule: every schema change ships a seeded-old-store test).
+    @Test func v2AddsBodyArchiveAndPreservesV1Rows() throws {
+        let db = try DatabaseQueue()
+        let migrator = SedimentDatabase.migrator()
+
+        // Old store: only v1 applied — no `bodyArchive` column yet.
+        try migrator.migrate(db, upTo: "v1_create_entities")
+        let hasColumnBefore = try db.read { d in
+            try d.columns(in: "journalEntries").contains { $0.name == "bodyArchive" }
+        }
+        #expect(hasColumnBefore == false)
+
+        // Seed a v1-era row directly (the typed model has the newer column).
+        let id = UUID().uuidString.lowercased()
+        try db.write { d in
+            try d.execute(
+                sql: """
+                    INSERT INTO "journalEntries" ("id","createdAt","updatedAt","body","isPrivate")
+                    VALUES (?, '2024-01-01 00:00:00.000', '2024-01-01 00:00:00.000', ?, 1)
+                    """,
+                arguments: [id, "**old** entry"]
+            )
+        }
+
+        // Migrate to the latest schema.
+        try migrator.migrate(db)
+
+        let (hasColumnAfter, body, archive) = try db.read { d -> (Bool, String?, Data?) in
+            let hasColumn = try d.columns(in: "journalEntries").contains { $0.name == "bodyArchive" }
+            let row = try Row.fetchOne(
+                d, sql: #"SELECT "body", "bodyArchive" FROM "journalEntries" WHERE "id" = ?"#,
+                arguments: [id]
+            )
+            return (hasColumn, row?["body"], row?["bodyArchive"])
+        }
+        #expect(hasColumnAfter)
+        #expect(body == "**old** entry")  // old data intact
+        #expect(archive == nil)           // new column defaults to NULL
+
+        // And the typed model can now write/read the new column.
+        let repo = Repository(database: db)
+        let fresh = try repo.create(JournalEntry(body: "new", bodyArchive: Data([0x01, 0x02])))
+        #expect(try repo.entry(id: fresh.id)?.bodyArchive == Data([0x01, 0x02]))
+    }
+
     // MARK: Entry CRUD round-trip
 
     @Test func insertFetchUpdateDeleteEntry() throws {
