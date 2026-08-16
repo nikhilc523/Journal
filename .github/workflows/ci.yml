@@ -16,9 +16,6 @@ jobs:
     runs-on: macos-26
     env:
       SCHEME: Journal
-      # macos-26 runners ship the iOS 26.x runtime; OS=latest resolves to it
-      # without pinning a patch version that may not exist on the image.
-      DESTINATION: "platform=iOS Simulator,name=iPhone 17,OS=latest"
       # Minimum line coverage (%) for the app target. Raised as real features land.
       COVERAGE_MIN: "0"
     steps:
@@ -36,8 +33,34 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
-      - name: Show available simulators
-        run: xcrun simctl list devices available | grep -i "iphone 17" || true
+      - name: Resolve iPhone 17 simulator
+        run: |
+          set -euo pipefail
+          # `OS=latest`/`name=` destinations resolve unreliably when several iOS
+          # runtimes are installed, so pin to a concrete UDID: the highest iOS
+          # runtime that has an "iPhone 17" (keeps us on iOS 26 given Xcode 26).
+          UDID=$(xcrun simctl list devices available --json | python3 -c '
+import sys, json
+data = json.load(sys.stdin)["devices"]
+best_ver, best_udid = None, None
+for runtime, devices in data.items():
+    if "iOS" not in runtime:
+        continue
+    ver = tuple(int(p) for p in runtime.rsplit(".", 1)[-1].split("-")[-3:] if p.isdigit())
+    for dev in devices:
+        if dev.get("name") == "iPhone 17" and dev.get("isAvailable"):
+            if best_ver is None or ver > best_ver:
+                best_ver, best_udid = ver, dev["udid"]
+print(best_udid or "")
+')
+          if [ -z "$UDID" ]; then
+            echo "::error::No available 'iPhone 17' simulator found on this runner."
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Resolved iPhone 17 simulator: $UDID"
+          xcrun simctl boot "$UDID" || true
+          echo "SIM_ID=$UDID" >> "$GITHUB_ENV"
 
       - name: Build & test
         run: |
@@ -45,7 +68,7 @@ jobs:
           xcodebuild test \
             -project Journal.xcodeproj \
             -scheme "$SCHEME" \
-            -destination "$DESTINATION" \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
             -resultBundlePath TestResults.xcresult \
             -enableCodeCoverage YES \
             -skipMacroValidation \
