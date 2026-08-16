@@ -25,13 +25,21 @@ jobs:
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "26.0"
+          # latest-stable = the runner's fully-installed Xcode 26.x (its matching
+          # iOS 26 simulator runtime is present). Pinning "26.0" selected an
+          # Xcode whose iOS 26.0 runtime was NOT installed on the image.
+          xcode-version: latest-stable
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
       - name: Generate project
         run: xcodegen generate
+
+      - name: Show Xcode & runtimes
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes | grep -i ios || true
 
       - name: Resolve iPhone 17 simulator
         run: |
