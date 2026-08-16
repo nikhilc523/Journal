@@ -129,6 +129,17 @@ public extension DS {
         public static let cardGap: CGFloat = 12
         /// Padding inside a card.
         public static let cardPadding: CGFloat = 16
+
+        // Small optical metrics — deliberately off the 4pt display grid, kept here
+        // as named tokens so views never hardcode raw literals (repo rule).
+        /// Gap between a chip's leading icon and its label.
+        public static let chipGap: CGFloat = 6
+        /// Horizontal padding inside an attachment chip.
+        public static let chipPaddingH: CGFloat = 10
+        /// Vertical padding inside an attachment chip.
+        public static let chipPaddingV: CGFloat = 6
+        /// Top nudge that optically centers a todo title against the 44pt checkbox.
+        public static let todoTitleOpticalTop: CGFloat = 10
     }
 }
 

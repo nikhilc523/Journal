@@ -6,6 +6,7 @@ import SwiftUI
 public struct Checkbox: View {
     @Binding private var isOn: Bool
     private let label: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(isOn: Binding<Bool>, label: String = "Done") {
         self._isOn = isOn
@@ -28,7 +29,7 @@ public struct Checkbox: View {
                     .opacity(isOn ? 1 : 0)
                     .scaleEffect(isOn ? 1 : 0.4)
             }
-            .animation(DS.Motion.tap, value: isOn)
+            .animation(reduceMotion ? nil : DS.Motion.tap, value: isOn)
             .contentShape(Circle())
             .frame(width: 44, height: 44)
         }

@@ -10,7 +10,7 @@ public struct PressableButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed && !reduceMotion ? DS.Motion.pressScale : 1)
-            .animation(DS.Motion.tap, value: configuration.isPressed)
+            .animation(reduceMotion ? nil : DS.Motion.tap, value: configuration.isPressed)
     }
 }
 

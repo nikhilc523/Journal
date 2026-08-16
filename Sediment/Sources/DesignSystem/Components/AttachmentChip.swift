@@ -34,7 +34,7 @@ public struct AttachmentChip: View {
     }
 
     public var body: some View {
-        HStack(spacing: DS.Spacing.xs + 2) {
+        HStack(spacing: DS.Spacing.chipGap) {
             Image(systemName: kind.systemImage)
                 .font(.system(size: 13, weight: .medium))
             if let title {
@@ -44,8 +44,8 @@ public struct AttachmentChip: View {
             }
         }
         .foregroundStyle(DS.Colors.inkSecondary)
-        .padding(.horizontal, DS.Spacing.sm + 2)
-        .padding(.vertical, DS.Spacing.xs + 2)
+        .padding(.horizontal, DS.Spacing.chipPaddingH)
+        .padding(.vertical, DS.Spacing.chipPaddingV)
         .background {
             RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous)
                 .fill(DS.Colors.surfaceSunken)
