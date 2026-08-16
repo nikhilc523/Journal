@@ -83,6 +83,16 @@ public enum SedimentDatabase {
                 """)
         }
 
+        // Stage 4: the composer persists rich text losslessly. `body` remains the
+        // human-readable Markdown projection (preview/search/export); `bodyArchive`
+        // holds the full `AttributedString` archive the editor reopens. Additive +
+        // nullable, so existing rows (archive = NULL) still open by parsing `body`.
+        migrator.registerMigration("v2_entry_body_archive") { db in
+            try db.execute(sql: """
+                ALTER TABLE "journalEntries" ADD COLUMN "bodyArchive" BLOB;
+                """)
+        }
+
         return migrator
     }
 

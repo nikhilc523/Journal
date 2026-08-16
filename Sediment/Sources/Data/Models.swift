@@ -21,8 +21,15 @@ public struct JournalEntry: Codable, Identifiable, Sendable, Equatable {
     public var id: UUID
     public var createdAt: Date
     public var updatedAt: Date
-    /// Rich-text body serialized as Markdown. (Stage 12 encrypts this column.)
+    /// Rich-text body projected to Markdown — the human-readable source used for
+    /// timeline previews, search, and export. (Stage 12 encrypts this column.)
     public var body: String
+    /// Lossless archive of the entry's `AttributedString` (JSON, SwiftUI attribute
+    /// scope) — the fidelity source the composer reopens, preserving styling that
+    /// Markdown can't carry (e.g. text color). `nil` for entries authored before
+    /// Stage 4 or imported as plain Markdown; the composer falls back to parsing
+    /// `body` in that case. (Stage 12 encrypts this column alongside `body`.)
+    public var bodyArchive: Data?
     /// Raw value of `DS.Mood`; nil when the user hasn't set a mood.
     public var mood: Int?
     // Weather snapshot (Stage 8) — captured once at creation, never re-fetched.
@@ -41,6 +48,7 @@ public struct JournalEntry: Codable, Identifiable, Sendable, Equatable {
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         body: String = "",
+        bodyArchive: Data? = nil,
         mood: Int? = nil,
         weatherTempC: Double? = nil,
         weatherCondition: String? = nil,
@@ -54,6 +62,7 @@ public struct JournalEntry: Codable, Identifiable, Sendable, Equatable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.body = body
+        self.bodyArchive = bodyArchive
         self.mood = mood
         self.weatherTempC = weatherTempC
         self.weatherCondition = weatherCondition

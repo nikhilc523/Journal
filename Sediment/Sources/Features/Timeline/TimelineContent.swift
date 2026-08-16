@@ -6,10 +6,19 @@ import SwiftUI
 public struct TimelineList: View {
     private let entries: [EntryRowModel]
     private let onOpen: (UUID) -> Void
+    private let heroNamespace: Namespace.ID?
+    private let activeHeroID: UUID?
 
-    public init(entries: [EntryRowModel], onOpen: @escaping (UUID) -> Void = { _ in }) {
+    public init(
+        entries: [EntryRowModel],
+        onOpen: @escaping (UUID) -> Void = { _ in },
+        heroNamespace: Namespace.ID? = nil,
+        activeHeroID: UUID? = nil
+    ) {
         self.entries = entries
         self.onOpen = onOpen
+        self.heroNamespace = heroNamespace
+        self.activeHeroID = activeHeroID
     }
 
     public var body: some View {
@@ -18,15 +27,21 @@ public struct TimelineList: View {
         } else {
             ScrollView {
                 LazyVStack(spacing: DS.Spacing.cardGap) {
+                    // The card that is expanding into the composer leaves the list
+                    // so its geometry hands off cleanly to the hero (below the
+                    // full-screen composer, the reflow is unseen).
                     ForEach(entries) { entry in
-                        EntryCard(
-                            preview: entry.preview,
-                            mood: entry.mood,
-                            timestamp: entry.timestamp,
-                            mediaCount: entry.mediaCount,
-                            todoCount: entry.todoCount,
-                            action: { onOpen(entry.id) }
-                        )
+                        if entry.id != activeHeroID {
+                            EntryCard(
+                                preview: entry.preview,
+                                mood: entry.mood,
+                                timestamp: entry.timestamp,
+                                mediaCount: entry.mediaCount,
+                                todoCount: entry.todoCount,
+                                action: { onOpen(entry.id) }
+                            )
+                            .heroMatched(id: entry.id, in: heroNamespace)
+                        }
                     }
                 }
                 .padding(.horizontal, DS.Spacing.screenInset)
@@ -70,6 +85,8 @@ public struct TimelineContent: View {
     private let onOpen: (UUID) -> Void
     private let onCreate: () -> Void
     private let onMenu: () -> Void
+    private let heroNamespace: Namespace.ID?
+    private let activeHeroID: UUID?
 
     public init(
         entries: [EntryRowModel],
@@ -77,7 +94,9 @@ public struct TimelineContent: View {
         tab: Binding<AppTab>,
         onOpen: @escaping (UUID) -> Void = { _ in },
         onCreate: @escaping () -> Void = {},
-        onMenu: @escaping () -> Void = {}
+        onMenu: @escaping () -> Void = {},
+        heroNamespace: Namespace.ID? = nil,
+        activeHeroID: UUID? = nil
     ) {
         self.entries = entries
         self._scope = scope
@@ -85,6 +104,8 @@ public struct TimelineContent: View {
         self.onOpen = onOpen
         self.onCreate = onCreate
         self.onMenu = onMenu
+        self.heroNamespace = heroNamespace
+        self.activeHeroID = activeHeroID
     }
 
     public var body: some View {
@@ -98,7 +119,12 @@ public struct TimelineContent: View {
                     selection: $scope,
                     title: \.title
                 )
-                TimelineList(entries: entries, onOpen: onOpen)
+                TimelineList(
+                    entries: entries,
+                    onOpen: onOpen,
+                    heroNamespace: heroNamespace,
+                    activeHeroID: activeHeroID
+                )
             }
             .padding(.top, DS.Spacing.sm)
 
