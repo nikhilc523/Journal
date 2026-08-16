@@ -37,22 +37,14 @@ jobs:
         run: |
           set -euo pipefail
           # `OS=latest`/`name=` destinations resolve unreliably when several iOS
-          # runtimes are installed, so pin to a concrete UDID: the highest iOS
-          # runtime that has an "iPhone 17" (keeps us on iOS 26 given Xcode 26).
-          UDID=$(xcrun simctl list devices available --json | python3 -c '
-import sys, json
-data = json.load(sys.stdin)["devices"]
-best_ver, best_udid = None, None
-for runtime, devices in data.items():
-    if "iOS" not in runtime:
-        continue
-    ver = tuple(int(p) for p in runtime.rsplit(".", 1)[-1].split("-")[-3:] if p.isdigit())
-    for dev in devices:
-        if dev.get("name") == "iPhone 17" and dev.get("isAvailable"):
-            if best_ver is None or ver > best_ver:
-                best_ver, best_udid = ver, dev["udid"]
-print(best_udid or "")
-')
+          # runtimes are installed (xcodebuild fell back to a placeholder that
+          # demanded "iOS 26.0"). Pin to a concrete UDID instead. Xcode 26 ships
+          # only iOS 26 runtimes, so the first available plain "iPhone 17" is on
+          # iOS 26 — the "\(" guard excludes "iPhone 17 Pro".
+          UDID=$(xcrun simctl list devices available \
+            | grep -E 'iPhone 17 \(' \
+            | grep -oiE '[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}' \
+            | head -1)
           if [ -z "$UDID" ]; then
             echo "::error::No available 'iPhone 17' simulator found on this runner."
             xcrun simctl list devices available
