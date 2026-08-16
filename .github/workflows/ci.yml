@@ -15,7 +15,7 @@ jobs:
     name: Build & Test
     runs-on: macos-26
     env:
-      SCHEME: Journal
+      SCHEME: Sediment
       # Minimum line coverage (%) for the app target. Raised as real features land.
       COVERAGE_MIN: "0"
     steps:
@@ -66,7 +66,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild test \
-            -project Journal.xcodeproj \
+            -project Sediment.xcodeproj \
             -scheme "$SCHEME" \
             -destination "platform=iOS Simulator,id=$SIM_ID" \
             -resultBundlePath TestResults.xcresult \

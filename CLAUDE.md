@@ -1,10 +1,10 @@
-# Journal — Repository Gate (CLAUDE.md)
+# Sediment — Repository Gate (CLAUDE.md)
 
-Calm, local-first iOS journal: each day is one surface for writing + media + files + **todos-with-deadlines**. Private by default, on-device AI, human-readable export. This file is the always-on gate — its rules **override** default behavior.
+Calm, local-first iOS journal (**Sediment**): each day is one surface for writing + media + files + **todos-with-deadlines**. Private by default, on-device AI, human-readable export. This file is the always-on gate — its rules **override** default behavior.
 
 ## Platform (locked — do not revisit)
 - **iOS 26 only**, native SwiftUI, **iOS-only**. No Android, no back-deployment shims.
-- Scheme **`Journal`**. Simulator: **iPhone 17 / OS=26.0**.
+- Scheme **`Sediment`**. Simulator: **iPhone 17 / OS=26.0**.
 - Swift 6 language mode; respect strict concurrency (`ModelContext`/GRDB queues, `@MainActor` UI).
 
 ## Source of truth
