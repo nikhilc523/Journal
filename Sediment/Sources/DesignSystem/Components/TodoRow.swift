@@ -32,13 +32,13 @@ public struct TodoRow: View {
                     .strikethrough(isDone, color: DS.Colors.inkTertiary)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 10) // optical centering against the 44pt checkbox
+                    .padding(.top, DS.Spacing.todoTitleOpticalTop) // optical centering vs. 44pt checkbox
 
                 if let meta {
                     Text(meta)
                         .font(DS.Typography.meta)
                         .foregroundStyle(isOverdue ? DS.Colors.warning : DS.Colors.inkSecondary)
-                        .padding(.top, 12)
+                        .padding(.top, DS.Spacing.md)
                 }
             }
         }
