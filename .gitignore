@@ -34,3 +34,9 @@ docs/
 UI_Interface/
 master-plan.md
 PLAN.md
+
+# --- Freddy avatar: AGPL-licensed engine source (studio export). Kept local so
+# the copyleft engine code stays out of the remote; the native Swift port +
+# bundled `Sediment/Resources/freddy.avatar.json` (parametric design data) are
+# what ship. See memory/freddy-mascot.md for the licensing note. ---
+freddy-avatar/

@@ -71,6 +71,20 @@ public struct Repository: Sendable {
         }
     }
 
+    /// Persist the entry's mood (raw `DS.Mood` value, or `nil` to clear it),
+    /// stamping `updatedAt`. Runs on GRDB's async writer (off the main thread).
+    public func updateMood(entryID: UUID, mood: Int?, now: Date = Date()) async throws {
+        try await database.write { db in
+            try JournalEntry
+                .update {
+                    $0.mood = mood
+                    $0.updatedAt = now
+                }
+                .where { $0.id.eq(entryID) }
+                .execute(db)
+        }
+    }
+
     /// Delete an entry. `ON DELETE CASCADE` removes its media, embedding, and tag
     /// links; todos have their `entryID` set NULL (they may be standalone).
     public func deleteEntry(id: UUID) throws {
