@@ -21,6 +21,16 @@ public final class EntryComposerModel {
         didSet { scheduleSave() }
     }
 
+    /// The entry's mood, bound to the mood picker. Persisted immediately on change
+    /// (moods are discrete choices, not a stream of keystrokes, so they don't go
+    /// through the text debounce).
+    public var mood: DS.Mood? {
+        didSet {
+            guard mood != oldValue else { return }
+            Task { await persistMood() }
+        }
+    }
+
     /// True while a write is in flight (drives a subtle "Saving…" affordance).
     public private(set) var isSaving = false
     /// Timestamp of the last successful save, or `nil` if nothing saved yet.
@@ -36,11 +46,13 @@ public final class EntryComposerModel {
         repository: Repository,
         entryID: UUID,
         initialText: AttributedString,
+        initialMood: DS.Mood? = nil,
         debounce: Duration = .milliseconds(700)
     ) {
         self.repository = repository
         self.entryID = entryID
         self.text = initialText
+        self.mood = initialMood
         self.debounce = debounce
     }
 
@@ -51,8 +63,19 @@ public final class EntryComposerModel {
             repository: repository,
             entryID: entry.id,
             initialText: RichTextCodec.load(archive: entry.bodyArchive, markdown: entry.body),
+            initialMood: entry.mood.flatMap(DS.Mood.init(rawValue:)),
             debounce: debounce
         )
+    }
+
+    /// Persist the current mood immediately. Best-effort like autosave: a failure
+    /// leaves the in-memory value and the next change retries.
+    private func persistMood() async {
+        do {
+            try await repository.updateMood(entryID: entryID, mood: mood?.rawValue)
+        } catch {
+            // Swallowed on purpose — mood is re-persisted on the next change.
+        }
     }
 
     // MARK: Saving

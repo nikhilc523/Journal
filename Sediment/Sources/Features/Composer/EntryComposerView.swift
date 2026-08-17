@@ -29,6 +29,8 @@ public struct EntryComposerView: View {
 
             VStack(spacing: DS.Spacing.lg) {
                 header
+                MoodPickerView(mood: $model.mood)
+                    .padding(.horizontal, DS.Spacing.screenInset)
                 editor
             }
             .padding(.top, DS.Spacing.sm)
