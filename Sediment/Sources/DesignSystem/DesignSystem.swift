@@ -143,6 +143,17 @@ public extension DS {
     }
 }
 
+// MARK: - Media sizes (attachments)
+
+public extension DS {
+    enum Sizes {
+        /// Square thumbnail in the composer's attachment strip.
+        public static let mediaThumb: CGFloat = 64
+        /// Adaptive minimum width for a media-grid cell (square).
+        public static let mediaGridMin: CGFloat = 104
+    }
+}
+
 // MARK: - Typography
 //
 // SF Pro for UI chrome; New York (serif) for journal body/reading. Everything

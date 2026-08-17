@@ -32,6 +32,9 @@ public struct EntryComposerView: View {
                 MoodPickerView(mood: $model.mood)
                     .padding(.horizontal, DS.Spacing.screenInset)
                 editor
+                ComposerMediaBar(model: model.media)
+                    .padding(.horizontal, DS.Spacing.screenInset)
+                    .padding(.bottom, DS.Spacing.sm)
             }
             .padding(.top, DS.Spacing.sm)
         }
