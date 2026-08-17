@@ -112,6 +112,14 @@ public struct Repository: Sendable {
         }
     }
 
+    /// Remove a single media row. The filesystem original is deleted separately by
+    /// the caller (see ``EntryComposerMediaModel``) — the DB only holds references.
+    public func deleteMedia(id: UUID) throws {
+        try database.write { db in
+            try MediaAttachment.delete().where { $0.id.eq(id) }.execute(db)
+        }
+    }
+
     // MARK: Todos
 
     @discardableResult

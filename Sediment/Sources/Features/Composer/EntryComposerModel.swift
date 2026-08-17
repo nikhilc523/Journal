@@ -38,6 +38,10 @@ public final class EntryComposerModel {
 
     public let entryID: UUID
 
+    /// The entry's media attachments (photos / video / files), loaded eagerly so
+    /// the composer's attachment strip reflects the current row on open.
+    public let media: EntryComposerMediaModel
+
     private let repository: Repository
     private let debounce: Duration
     private var pendingSave: Task<Void, Never>?
@@ -47,12 +51,14 @@ public final class EntryComposerModel {
         entryID: UUID,
         initialText: AttributedString,
         initialMood: DS.Mood? = nil,
+        mediaStore: MediaStore? = nil,
         debounce: Duration = .milliseconds(700)
     ) {
         self.repository = repository
         self.entryID = entryID
         self.text = initialText
         self.mood = initialMood
+        self.media = EntryComposerMediaModel(repository: repository, entryID: entryID, store: mediaStore)
         self.debounce = debounce
     }
 
